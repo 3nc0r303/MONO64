@@ -18,18 +18,18 @@ using APB = juce::AudioParameterBool;
 
 Tree::ParameterLayout createParams() {
     Tree::ParameterLayout layout;
-    auto f = [&](const char* id,const char* name,float min,float max,float def,
+    auto f = [&](const char* id,const juce::String& name,float min,float max,float def,
                  float skew=1.f,float step=.001f) {
         layout.add(std::make_unique<APF>(juce::ParameterID{id,1},name,
             juce::NormalisableRange<float>{min,max,step,skew},def));
     };
-    auto c = [&](const char* id,const char* name,const juce::StringArray& values,int def) {
+    auto c = [&](const char* id,const juce::String& name,const juce::StringArray& values,int def) {
         layout.add(std::make_unique<APC>(juce::ParameterID{id,1},name,values,def));
     };
-    auto integer = [&](const char* id,const char* name,int lo,int hi,int def) {
+    auto integer = [&](const char* id,const juce::String& name,int lo,int hi,int def) {
         layout.add(std::make_unique<API>(juce::ParameterID{id,1},name,lo,hi,def));
     };
-    auto boolean = [&](const char* id,const char* name,bool def) {
+    auto boolean = [&](const char* id,const juce::String& name,bool def) {
         layout.add(std::make_unique<APB>(juce::ParameterID{id,1},name,def));
     };
     const juce::StringArray waves{"Saw","Square"};
@@ -168,10 +168,10 @@ public:
     bool hasEditor()const override{return true;}
     juce::AudioProcessorEditor* createEditor()override;
     void getStateInformation(juce::MemoryBlock& dest)override {
-        if(auto xml=parameters.copyState().createXml())juce::copyXmlToBinary(*xml,dest);
+        if(auto xml=parameters.copyState().createXml())copyXmlToBinary(*xml,dest);
     }
     void setStateInformation(const void* data,int size)override {
-        if(auto xml=juce::getXmlFromBinary(data,size))
+        if(auto xml=getXmlFromBinary(data,size))
             if(xml->hasTagName(parameters.state.getType()))
                 parameters.replaceState(juce::ValueTree::fromXml(*xml));
     }
