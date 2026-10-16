@@ -575,8 +575,24 @@ public:
             }
         }
     }
+    void setPage(int page) {
+        analyzer->setVisible(page==0);
+        analyzer->setBounds(15,12,1116,230);
+        for(size_t i=0;i<panels.size();++i) {
+            const int group = i==0 ? 0 : i<=3 ? 1 : i<=5 ? 2 : i<=7 ? 3 : i<=9 ? 4 : 5;
+            panels[i]->setVisible(group==page);
+            if(group!=page) continue;
+            auto bounds=originalBounds[i];
+            if(page==0) bounds.setY(255);
+            else if(page==1) bounds.setY(12);
+            else if(page==2) bounds.setY(i==4?12:204);
+            else bounds.setY(12);
+            panels[i]->setBounds(bounds);
+        }
+    }
     void paint(juce::Graphics& g)override{g.fillAll(juce::Colour(BG));}
 private:
+    std::vector<juce::Rectangle<int>> originalBounds;
     std::unique_ptr<SpectrumView> analyzer;
     std::vector<std::unique_ptr<PanelView>> panels;
 };
