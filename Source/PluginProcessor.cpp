@@ -498,7 +498,7 @@ private:
 class PanelCanvas final:public juce::Component {
 public:
     PanelCanvas(Tree& tree,SpectrumPipe& pipe){
-        setSize(1148,1665);
+        setSize(1148,465);
         auto spectrum=std::make_unique<SpectrumView>(pipe);
         spectrum->setBounds(15,12,1116,265);
         addAndMakeVisible(*spectrum);
@@ -506,7 +506,7 @@ public:
         auto add=[&](const juce::String& title,int x,int y,int w,int h)->PanelView& {
             auto p=std::make_unique<PanelView>(title);
             p->setBounds(x,y,w,h);addAndMakeVisible(*p);
-            panels.push_back(std::move(p));return *panels.back();
+            originalBounds.push_back(p->getBounds());panels.push_back(std::move(p));return *panels.back();
         };
         {
             auto& u=add("01  /  64-VOICE UNISON ENGINE",15,289,1116,176);
@@ -583,41 +583,86 @@ private:
 
 class Mono64Editor final:public juce::AudioProcessorEditor {
 public:
-    explicit Mono64Editor(Mono64Processor& p):juce::AudioProcessorEditor(p),
-        content(p.parameters,p.spectrum),
-        keyboard(p.keyboardState,juce::MidiKeyboardComponent::horizontalKeyboard){
+    explicit Mono64Editor(Mono64Processor& p):juce::AudioProcessorEditor(p),processor(p),content(p.parameters,p.spectrum) {
         setLookAndFeel(&look);
         viewport.setViewedComponent(&content,false);
-        viewport.setScrollBarsShown(true,false);
+        viewport.setScrollBarsShown(false,false);
         addAndMakeVisible(viewport);
-        keyboard.setAvailableRange(24,96);
-        keyboard.setLowestVisibleKey(36);
-        keyboard.setKeyWidth(19.f);
-        addAndMakeVisible(keyboard);
-        setSize(1180,840);
+        const char* names[]={"UNISON","OSCILLATORS","SHAPE / HP","SUB / FILTER","LFO","ENVELOPES"};
+        for(int i=0;i<6;++i) {
+            auto button=std::make_unique<juce::TextButton>(names[i]);
+            button->onClick=[this,i]{selectPage(i);};
+            addAndMakeVisible(*button);
+            tabs.push_back(std::move(button));
+        }
+        saveButton.setButtonText("SAVE PRESET");
+        loadButton.setButtonText("LOAD PRESET");
+        saveButton.onClick=[this]{choosePreset(true);};
+        loadButton.onClick=[this]{choosePreset(false);};
+        addAndMakeVisible(saveButton);addAndMakeVisible(loadButton);
+        selectPage(0);
+        setSize(1180,610);
     }
-    ~Mono64Editor()override{setLookAndFeel(nullptr);}
+    ~Mono64Editor()override{chooser.reset();setLookAndFeel(nullptr);}
     void resized()override{
-        viewport.setBounds(15,84,getWidth()-30,getHeight()-184);
-        keyboard.setBounds(24,getHeight()-84,getWidth()-48,69);
+        int x=20;
+        for(auto& tab:tabs){tab->setBounds(x,77,153,34);x+=158;}
+        loadButton.setBounds(947,18,100,33);
+        saveButton.setBounds(1052,18,108,33);
+        viewport.setBounds(16,122,getWidth()-32,getHeight()-138);
     }
     void paint(juce::Graphics& g)override{
         g.fillAll(juce::Colour(BG));
-        g.setColour(juce::Colour(ACCENT));g.setFont(juce::Font(39.f,juce::Font::bold));
-        g.drawText("MONO64",29,10,230,57,juce::Justification::left);
-        g.setColour(juce::Colour(MUTED));g.setFont(juce::Font(13.f,juce::Font::bold));
-        g.drawText("SAW + SQUARE  /  64 VOICES  /  MONO SUB",265,20,590,25,juce::Justification::left);
-        g.drawText("V0.3    ·    GLOBAL PWM/SHAPE    ·    DUAL HP    ·    TWO-COLOR FFT",265,43,730,20,juce::Justification::left);
-        g.setColour(juce::Colour(0xff303640));g.drawHorizontalLine(77,25.f,getWidth()-25.f);
-        g.setColour(juce::Colour(MUTED));g.setFont(juce::Font(12.f));
-        g.drawText("MIDI KEYBOARD  •  PLAY IN FL STUDIO OR CLICK KEYS BELOW",28,
-                   getHeight()-110,650,21,juce::Justification::left);
+        g.setColour(juce::Colour(ACCENT));
+        g.setFont(juce::Font(juce::FontOptions(30.f,juce::Font::bold)));
+        g.drawText("MONO64",24,12,240,49,juce::Justification::left);
+        g.setColour(juce::Colour(MUTED));
+        g.setFont(juce::Font(juce::FontOptions(13.f)));
+        g.drawText("64 VOICES  /  SAW + SQUARE  /  SINE SUB",265,25,540,24,juce::Justification::left);
     }
 private:
+    void selectPage(int page){
+        content.setPage(page);
+        for(int i=0;i<static_cast<int>(tabs.size());++i)
+            tabs[static_cast<size_t>(i)]->setColour(juce::TextButton::buttonColourId,
+                juce::Colour(i==page?0xff617c34:0xff292e38));
+    }
+    void choosePreset(bool save){
+        chooser=std::make_unique<juce::FileChooser>(
+            save?"Save MONO64 preset":"Load MONO64 preset",
+            juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),"*.mono64");
+        auto flags=save ? juce::FileBrowserComponent::saveMode|juce::FileBrowserComponent::canSelectFiles
+                        : juce::FileBrowserComponent::openMode|juce::FileBrowserComponent::canSelectFiles;
+        juce::Component::SafePointer<Mono64Editor> safe(this);
+        chooser->launchAsync(flags,[safe,save](const juce::FileChooser& fc){
+            if(safe==nullptr)return;
+            auto file=fc.getResult();
+            if(file==juce::File{})return;
+            if(save){
+                file=file.withFileExtension(".mono64");
+                if(auto xml=safe->processor.parameters.copyState().createXml())
+                    if(!xml->writeTo(file))
+                        juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
+                            "MONO64","Could not save preset.");
+            } else {
+                if(auto xml=juce::XmlDocument::parse(file)){
+                    if(xml->hasTagName(safe->processor.parameters.state.getType())){
+                        safe->processor.parameters.replaceState(juce::ValueTree::fromXml(*xml));
+                        return;
+                    }
+                }
+                juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::WarningIcon,
+                    "MONO64","Invalid preset file.");
+            }
+        });
+    }
+    Mono64Processor& processor;
     IndustrialLook look;
     PanelCanvas content;
     juce::Viewport viewport;
-    juce::MidiKeyboardComponent keyboard;
+    std::vector<std::unique_ptr<juce::TextButton>> tabs;
+    juce::TextButton saveButton,loadButton;
+    std::unique_ptr<juce::FileChooser> chooser;
 };
 juce::AudioProcessorEditor* Mono64Processor::createEditor(){return new Mono64Editor(*this);}
 } // namespace
