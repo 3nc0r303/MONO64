@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MONO64 VERSION 0.3.0 LANGUAGES C CXX)
+project(MONO64 VERSION 0.4.0 LANGUAGES C CXX)
 
 # Local JUCE copy is supported: cmake -S . -B build -DJUCE_DIR=C:/JUCE
 # Otherwise, the first configuration downloads a pinned JUCE release.
@@ -18,9 +18,9 @@ endif()
 juce_add_plugin(MONO64
     COMPANY_NAME "Independent Audio"
     PLUGIN_MANUFACTURER_CODE Mn64
-    PLUGIN_CODE M064
+    PLUGIN_CODE M065
     FORMATS VST3 Standalone
-    PRODUCT_NAME "MONO64"
+    PRODUCT_NAME "MONO64 Next"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
