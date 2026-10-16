@@ -126,7 +126,7 @@ class Mono64Processor final:public juce::AudioProcessor {
 public:
     Mono64Processor():AudioProcessor(BusesProperties().withOutput("Output",juce::AudioChannelSet::stereo(),true)),
         parameters(*this,nullptr,"MONO64_STATE",createParams()){}
-    const juce::String getName()const override{return "MONO64";}
+    const juce::String getName()const override{return "MONO64 Next";}
     bool acceptsMidi()const override{return true;}
     bool producesMidi()const override{return false;}
     bool isMidiEffect()const override{return false;}
@@ -631,7 +631,7 @@ public:
         g.fillAll(juce::Colour(BG));
         g.setColour(juce::Colour(ACCENT));
         g.setFont(juce::Font(juce::FontOptions(30.f,juce::Font::bold)));
-        g.drawText("MONO64",24,12,240,49,juce::Justification::left);
+        g.drawText("MONO64 Next",24,12,260,49,juce::Justification::left);
         g.setColour(juce::Colour(MUTED));
         g.setFont(juce::Font(juce::FontOptions(13.f)));
         g.drawText("64 VOICES  /  SAW + SQUARE  /  SINE SUB",265,25,540,24,juce::Justification::left);
