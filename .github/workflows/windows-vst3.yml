@@ -1,0 +1,20 @@
+name: Build MONO64 Windows VST3
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+      - name: Build VST3
+        run: cmake --build build --config Release --target MONO64_VST3 --parallel 2
+      - name: Upload plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: MONO64-Windows-VST3
+          path: build/MONO64_artefacts/Release/VST3/MONO64.vst3
+          if-no-files-found: error
